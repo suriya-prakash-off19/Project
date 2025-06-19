@@ -129,6 +129,7 @@ namespace ObjectRemoverProject
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     currentPdfPath = openFileDialog.FileName;
+
                     if (File.Exists(pdfPathForViewer))
                         File.Delete(pdfPathForViewer);
                     File.Copy(currentPdfPath, pdfPathForViewer);

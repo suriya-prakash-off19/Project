@@ -120,6 +120,10 @@ namespace ObjectRemoverProject
                                 tempLines[index] = Encoding.UTF8.GetString(contentBytes);
                                 break;
                             }
+                            else
+                            {
+
+                            }
                         }
 
                     }
@@ -127,12 +131,10 @@ namespace ObjectRemoverProject
 
                 string convertorString = string.Join("\n", tempLines);
                 var rectangle = CalculateRectangle.CalculateBoundingBoxFromContentStream(convertorString);
-                var rectangle2 = CalculateRectangle.CalculateRectangleFromXObject(page, convertorString);
                 var rectangle3 = CalculateRectangle.GetRectangle(convertorString, out int[] indices);
 
                 var lines = string.Join("\n", token.Lines);
-                if (rectangle == null || rectangle.GetWidth() == double.PositiveInfinity)
-                    rectangle = rectangle2;
+                
                 //if (rectangle == null || rectangle.GetWidth() == double.PositiveInfinity)
                 //{
                 if (rectangle3 != null)
@@ -629,7 +631,7 @@ namespace ObjectRemoverProject
                         isChanged = RemoveObjectUsingPolygen(objectData, x, y, page, out bool isInsideParent);
 
                         #region TODO:Remove Text
-                        var path = string.Join("\n", objectData.Block.GetFormattedString());
+                        var path = string.Join("\n", objectData.Block.GetOwnString());
                         var tempLines = objectData.Block.Lines.ToList();
                         float X = 0;
                         float Y = 0;
@@ -722,8 +724,8 @@ namespace ObjectRemoverProject
                         foreach (var child in block.Children)
                         {
                             string childXobjectName = GetXobjectName(child.GetOwnString())?.Trim('/');
-                            var isXobject = page.GetResources().GetResource(PdfName.XObject)?.GetAsStream(new PdfName(childXobjectName==null?"":childXobjectName));
-                            if (childXobjectName != null && isXobject == null)
+                            var isXobject = page.GetResources().GetResource(PdfName.XObject)?.GetAsStream(new PdfName(childXobjectName==null?"":childXobjectName))?.GetAsName(PdfName.Subtype);
+                            if (childXobjectName != null &&(isXobject ==null || !isXobject.Equals(PdfName.Form)))
                             {
                                 for (int i = 0; i < child.Lines.Count; i++)
                                 {
@@ -921,7 +923,7 @@ namespace ObjectRemoverProject
         {
             List<string> checkList = new List<string>
             {
-                "m","l","c","re","Do","v","y","f","f*","F","F*"
+                "m","l","c","re","Do","v","y","h","H"
             };
             foreach (var check in checkList)
             {
@@ -942,9 +944,6 @@ namespace ObjectRemoverProject
                 var rect1 = CalculateRectangle.CalculateBoundingBoxFromContentStream(string.Join("\n", graphicsBlock.Lines));
                 List<int> HIndex = new List<int>();
                 var rectx = CalculatePolygen.ParseContentStream(string.Join("\n", graphicsBlock.Lines), out List<(int, int)> index, doc.GetPage(pageNo));
-                var rect2 = CalculateRectangle.CalculateRectangleFromXObject(doc.GetPage(pageNo), string.Join("\n", graphicsBlock.Lines));
-                if (rect1 == null || rect1.GetRight() == double.PositiveInfinity)
-                    rect1 = rect2;
 
                 int HCount = 1;
                 var tempLines = graphicsBlock.Lines;
@@ -1294,12 +1293,12 @@ namespace ObjectRemoverProject
         }
 
         //Object Removal Form and PDFViewerForm
-        private bool ContainsTag(string v, string line)
+        private bool ContainsTag(string v, string  line)
         {
             if (!line.Contains(v))
                 return false;
             int index = line.IndexOf(v);
-            if (index != 0 && (line[index - 1] != ' ' && line[index - 1] != '\n' && line[index - 1] != '\r' && line[index - 1] != ']'))
+            if (index != 0 && (line[index - 1] != ' ' && line[index - 1] != '\n' && line[index - 1] != '\r' && line[index - 1] != ']' && line[index - 1] != ')'))
                 return false;
 
             index += v.Length;
@@ -1449,9 +1448,9 @@ namespace ObjectRemoverProject
             }
 
             var rect1 = CalculateRectangle.CalculateBoundingBoxFromContentStream(string.Join("\n", this.Lines));
-            var rect2 = CalculateRectangle.CalculateRectangleFromXObject(page, string.Join("\n", this.Lines));
-            if (rect1 == null || rect1.GetWidth() == double.PositiveInfinity)
-                rect1 = rect2;
+            //var rect2 = CalculateRectangle.CalculateRectangleFromXObject(page, string.Join("\n", this.Lines));
+            //if (rect1 == null || rect1.GetWidth() == double.PositiveInfinity)
+            //    rect1 = rect2;
             if (rect1 != null && rect1.GetWidth() != double.PositiveInfinity && rect1.GetWidth() != 0)
                 tempRectArray.Add(rect1);
 
