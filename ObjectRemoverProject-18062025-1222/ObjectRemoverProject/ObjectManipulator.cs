@@ -101,9 +101,9 @@ namespace ObjectRemoverProject
                 if (objarray != null && XobjectName != null)
                 {
                     int index = 0;
-                    for(; index < tempLines.Count; index++)
+                    for (; index < tempLines.Count; index++)
                     {
-                        if(tempLines[index].Contains(XobjectName))
+                        if (tempLines[index].Contains(XobjectName))
                         {
                             break;
                         }
@@ -129,7 +129,7 @@ namespace ObjectRemoverProject
                 var rectangle = CalculateRectangle.CalculateBoundingBoxFromContentStream(convertorString);
                 var rectangle2 = CalculateRectangle.CalculateRectangleFromXObject(page, convertorString);
                 var rectangle3 = CalculateRectangle.GetRectangle(convertorString, out int[] indices);
-                
+
                 var lines = string.Join("\n", token.Lines);
                 if (rectangle == null || rectangle.GetWidth() == double.PositiveInfinity)
                     rectangle = rectangle2;
@@ -672,7 +672,7 @@ namespace ObjectRemoverProject
                                 }
                                 if (canRemove)
                                 {
-                                    if((ContainsTag("Tj",tempLines[i]) || ContainsTag("TJ",tempLines[i])))
+                                    if ((ContainsTag("Tj", tempLines[i]) || ContainsTag("TJ", tempLines[i])))
                                         tempLines[i] = "";
                                     isChanged = true;
                                 }
@@ -690,7 +690,7 @@ namespace ObjectRemoverProject
                 #endregion
 
                 SetFullContent(contentobj, array, pageNo);
-                 
+
             }
         }
 
@@ -708,11 +708,12 @@ namespace ObjectRemoverProject
             SortPolygenPoints(polygenPoints, objIndex);
             int index = 0;
             isInsideParent = false;
+            bool isfill = ContainsTag("f", requiredString) || ContainsTag("f*", requiredString) || ContainsTag("W", requiredString) || ContainsTag("W*", requiredString);
             foreach (var polygen in polygenPoints)
             {
-                string blockData = string.Join("\n", requiredString.Split('\n').Skip(objIndex[index].Item1).Take(objIndex[index].Item2 - objIndex[index].Item1+1));
-                bool isfill = ContainsTag("f", blockData) || ContainsTag("f*", blockData) || ContainsTag("W", blockData) || ContainsTag("W*", blockData) ;
-                if (CalculatePolygen.IsPointInsideOrNearPolygon(new System.Drawing.PointF(x, y), polygen.Points, isFill: isfill ))
+                string blockData = string.Join("\n", requiredString.Split('\n').Skip(objIndex[index].Item1).Take(objIndex[index].Item2 - objIndex[index].Item1));
+                
+                if (CalculatePolygen.IsPointInsideOrNearPolygon(new System.Drawing.PointF(x, y), polygen.Points, isFill: isfill))
                 {
                     if (ContainsTag("W n", blockData) || ContainsTag("W*", blockData) || ContainsTag("W", blockData))
                     {
@@ -720,21 +721,21 @@ namespace ObjectRemoverProject
                         bool isChildRemoved = false;
                         foreach (var child in block.Children)
                         {
-                            string childXobjectName = GetXobjectName(child.GetOwnString());
-                            if (childXobjectName != null)
+                            string childXobjectName = GetXobjectName(child.GetOwnString())?.Trim('/');
+                            var isXobject = page.GetResources().GetResource(PdfName.XObject)?.GetAsStream(new PdfName(childXobjectName==null?"":childXobjectName));
+                            if (childXobjectName != null && isXobject == null)
                             {
-                                
                                 for (int i = 0; i < child.Lines.Count; i++)
                                 {
                                     if (ContainsTag("Do", child.Lines[i]) || ContainsTag("sh", child.Lines[i]))
                                     {
                                         string tempLine = child.Lines[i];
-                                        if(ContainsTag("q",tempLine))
+                                        if (ContainsTag("q", tempLine))
                                         {
                                             child.Lines[i] = "q";
                                             isChildRemoved = true;
                                         }
-                                        else if(ContainsTag("Q",tempLine))
+                                        else if (ContainsTag("Q", tempLine))
                                         {
                                             child.Lines[i] = "Q";
                                             isChildRemoved = true;
@@ -752,7 +753,7 @@ namespace ObjectRemoverProject
                         }
                         if (!isChildRemoved)
                         {
-                            foreach(var child in block.Children)
+                            foreach (var child in block.Children)
                             {
                                 child.Parent = null;
                             }
@@ -772,13 +773,13 @@ namespace ObjectRemoverProject
                         //isInsideParent = DoesClickIsInParent(objData, x, y, page);
                         //if (isInsideParent)
                         //{
-                            for (int i = objData.From + objIndex[index].Item1; i < objData.From + objIndex[index].Item2; i++)
-                            {
-                                if (IsOnlyObjectMarking(tempLines[i]))
-                                    tempLines[i] = "";
-                            }
-                            isChanged = true;
-                            break;
+                        for (int i = objData.From + objIndex[index].Item1; i < objData.From + objIndex[index].Item2; i++)
+                        {
+                            if (IsOnlyObjectMarking(tempLines[i]))
+                                tempLines[i] = "";
+                        }
+                        isChanged = true;
+                        break;
                         //}
                     }
                 }
@@ -794,10 +795,10 @@ namespace ObjectRemoverProject
 
             if (block.Parent == null)
                 return true;
-            
+
             var polygon = CalculatePolygen.ParseContentStream(objData.Block.Parent.GetOwnString(), out List<(int, int)> objIndex, page);
 
-            var rect = CalculateRectangle.GetRectangle(objData.Block.Parent.GetOwnString(),out int[] index);
+            var rect = CalculateRectangle.GetRectangle(objData.Block.Parent.GetOwnString(), out int[] index);
 
             foreach (var poly in polygon)
             {
@@ -920,9 +921,9 @@ namespace ObjectRemoverProject
         {
             List<string> checkList = new List<string>
             {
-                "m","l","c","re","Do","v","y"
+                "m","l","c","re","Do","v","y","f","f*","F","F*"
             };
-            foreach(var check in checkList)
+            foreach (var check in checkList)
             {
                 if (ContainsTag(check, line))
                     return true;

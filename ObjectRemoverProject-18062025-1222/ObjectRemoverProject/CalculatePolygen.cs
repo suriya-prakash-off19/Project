@@ -470,7 +470,7 @@ namespace ObjectRemoverProject
 
         private static bool IsGraphicsOperator(string cmd)
         {
-            string[] operators = { "h", "S", "s" , "W", "n","W*"};
+            string[] operators = { "h", "S", "s" , "W", "n","W*","f","F","f*","F*"};
             foreach (var Operator in operators)
             {
                 if (ContainsTag(Operator, cmd))
