@@ -95,11 +95,19 @@ namespace ObjectRemoverProject
             foreach (GraphicsBlock token in tokens)
             {
                 GetAllObjectRectangles(token.Children, page);
-                string convertorString = string.Join("\n", token.Lines);
+                List<string> tempLines = token.Lines.ToList();
                 var XobjectName = GetXobjectName(token.GetOwnString());
                 PdfDictionary objarray = page.GetResources().GetResource(PdfName.XObject) as PdfDictionary;
                 if (objarray != null && XobjectName != null)
                 {
+                    int index = 0;
+                    for(; index < tempLines.Count; index++)
+                    {
+                        if(tempLines[index].Contains(XobjectName))
+                        {
+                            break;
+                        }
+                    }
                     foreach (PdfName key in objarray.KeySet())
                     {
                         if (XobjectName != null && key.ToString().Contains(XobjectName))
@@ -107,15 +115,17 @@ namespace ObjectRemoverProject
                             PdfStream contentStream = objarray.Get(key) as PdfStream;
                             var subType = contentStream.GetAsName(PdfName.Subtype);
                             byte[] contentBytes = contentStream.GetBytes();
-                            if(!subType.Equals(PdfName.Image))
+                            if (!subType.Equals(PdfName.Image))
                             {
-                                convertorString = Encoding.UTF8.GetString(contentBytes);
+                                tempLines[index] = Encoding.UTF8.GetString(contentBytes);
                                 break;
                             }
                         }
 
                     }
                 }
+
+                string convertorString = string.Join("\n", tempLines);
                 var rectangle = CalculateRectangle.CalculateBoundingBoxFromContentStream(convertorString);
                 var rectangle2 = CalculateRectangle.CalculateRectangleFromXObject(page, convertorString);
                 var rectangle3 = CalculateRectangle.GetRectangle(convertorString, out int[] indices);
@@ -700,7 +710,7 @@ namespace ObjectRemoverProject
             isInsideParent = false;
             foreach (var polygen in polygenPoints)
             {
-                string blockData = string.Join("\n", requiredString.Split('\n').Skip(objData.From + objIndex[index].Item1).Take(objData.From + objIndex[index].Item2 - objIndex[index].Item1+1));
+                string blockData = string.Join("\n", requiredString.Split('\n').Skip(objIndex[index].Item1).Take(objIndex[index].Item2 - objIndex[index].Item1+1));
                 bool isfill = ContainsTag("f", blockData) || ContainsTag("f*", blockData) || ContainsTag("W", blockData) || ContainsTag("W*", blockData) ;
                 if (CalculatePolygen.IsPointInsideOrNearPolygon(new System.Drawing.PointF(x, y), polygen.Points, isFill: isfill ))
                 {

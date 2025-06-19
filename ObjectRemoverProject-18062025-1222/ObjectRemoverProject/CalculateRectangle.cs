@@ -67,6 +67,18 @@ namespace ObjectRemoverProject
             
             List<double> operandStack = new List<double>();
 
+            Matrix3x3 MultiplyMatrices(Matrix3x3 m1, Matrix3x3 m2)
+            {
+                return new Matrix3x3(
+                    m1.A * m2.A + m1.B * m2.C,
+                    m1.A * m2.B + m1.B * m2.D,
+                    m1.C * m2.A + m1.D * m2.C,
+                    m1.C * m2.B + m1.D * m2.D,
+                    m1.E * m2.A + m1.F * m2.C + m2.E,
+                    m1.E * m2.B + m1.F * m2.D + m2.F
+                );
+            }
+
             double popDouble()
             {
                 if (operandStack.Count == 0)
@@ -81,6 +93,7 @@ namespace ObjectRemoverProject
 
             int index = 0;
             indexes.Add(index);
+            Matrix3x3 currentMatrix = new Matrix3x3();
             foreach (var str in contentStream.Split('\n'))
             {
                 var matches = tokenRegex.Matches(str);
@@ -102,8 +115,10 @@ namespace ObjectRemoverProject
                                         break;
                                     double height = popDouble();
                                     double width = popDouble();
-                                    double y1 = popDouble();
-                                    double x1 = popDouble();
+                                    double tempY1 = popDouble();
+                                    double tempX1 = popDouble();
+
+                                    (double x1, double y1) = currentMatrix.Transform(tempX1, tempY1);
 
                                     double y2 = height + y1;
                                     double x2 = width + x1;
@@ -116,6 +131,25 @@ namespace ObjectRemoverProject
                                     rectangle.SetWidth(Math.Max(1,(float)Math.Abs(width)));
                                     allRectagles.Add(rectangle);
                                     indexes.Add(index+1);
+                                    break;
+                                }
+                            case "cm":
+                                {
+                                    if (operandStack.Count < 6)
+                                    {
+                                        operandStack.Clear();
+                                        break;
+                                    }
+
+                                    double f = popDouble();
+                                    double e = popDouble();
+                                    double d = popDouble();
+                                    double c = popDouble();
+                                    double b = popDouble();
+                                    double a = popDouble();
+
+                                    Matrix3x3 newMatrix = new Matrix3x3(a, b, c, d, e, f);
+                                    currentMatrix = MultiplyMatrices(currentMatrix, newMatrix);
                                     break;
                                 }
                             default:

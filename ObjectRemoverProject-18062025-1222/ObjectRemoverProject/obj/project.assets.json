@@ -2719,11 +2719,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "D:\\Project\\ObjectRemoverProject-18062025-1222\\ObjectRemoverProject\\ObjectRemoverProject.csproj",
+      "projectUniqueName": "D:\\Removal Project\\Project\\ObjectRemoverProject-18062025-1222\\ObjectRemoverProject\\ObjectRemoverProject.csproj",
       "projectName": "ObjectRemoverProject",
-      "projectPath": "D:\\Project\\ObjectRemoverProject-18062025-1222\\ObjectRemoverProject\\ObjectRemoverProject.csproj",
+      "projectPath": "D:\\Removal Project\\Project\\ObjectRemoverProject-18062025-1222\\ObjectRemoverProject\\ObjectRemoverProject.csproj",
       "packagesPath": "C:\\Users\\Lucid\\.nuget\\packages\\",
-      "outputPath": "D:\\Project\\ObjectRemoverProject-18062025-1222\\ObjectRemoverProject\\obj\\",
+      "outputPath": "D:\\Removal Project\\Project\\ObjectRemoverProject-18062025-1222\\ObjectRemoverProject\\obj\\",
       "projectStyle": "PackageReference",
       "skipContentFileWrite": true,
       "configFilePaths": [
