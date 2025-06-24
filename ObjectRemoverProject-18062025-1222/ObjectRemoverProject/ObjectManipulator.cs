@@ -30,6 +30,8 @@ namespace ObjectRemoverProject
 
         public int From;
 
+        public int ID;
+
         public int To;
     }
     public class ObjectManipulator : IDisposable
@@ -38,13 +40,15 @@ namespace ObjectRemoverProject
 
         private List<ObjectData> ObjectDatas;
 
-        private Dictionary<GraphicsBlock,List<ObjectData>> ObjectDataDict;
+        private Dictionary<int,ObjectData> ObjectDataDict;
 
         private List<GraphicsBlock> globalGraphicsBlock;
 
         public List<Rectangle> SelectedRectangles { get; private set; }
 
         public List<Dictionary<string, (int start, int end)>> locationSave;
+
+        private int Id;
         
         public static void ConvertPDF(string sourcePath,string destinationPath)
         {
@@ -149,7 +153,7 @@ namespace ObjectRemoverProject
                 ? ((PdfStream)((PdfIndirectReference)xObjectRef).GetRefersTo(true))
                 : (PdfStream)xObjectRef;
 
-            // Validate that it's a Form XObject
+            //// Validate that it's a Form XObject
             if (!PdfName.Form.Equals(xObjectStream.GetAsName(PdfName.Subtype)))
                 return null;
 
@@ -171,37 +175,22 @@ namespace ObjectRemoverProject
 
             var resource = xObjectStream.GetAsDictionary(PdfName.Resources);
             var bboxArray = xObjectStream.GetAsArray(PdfName.BBox);
+            var xObject = resource.GetAsDictionary(PdfName.XObject);
             string clipping = "";
-            string colorSpaceString = "";
-            string extGStateString = "";
-            var colorSpace = resource.GetAsDictionary(PdfName.ColorSpace);
-            var extGState = resource.GetAsDictionary(PdfName.ExtGState);
-            if(colorSpace!=null)
+            foreach(var key in resource.KeySet())
             {
-                foreach(var key in colorSpace.KeySet())
-                {
-                    var temp = colorSpace.Get(key).GetIndirectReference();
-                    colorSpaceString += key.ToString() + " " + temp.ToString() + "\n";
-                }
+                var obj = resource.Get(key).ToString().Trim('>','<');
+                clipping += obj + "\n";               
             }
-            if (extGState != null)
-            {
-                foreach (var key in extGState.KeySet())
-                {
-                    var temp = extGState.Get(key).GetIndirectReference();
-                    extGStateString += key.ToString() + " " + temp.ToString() + "\n";
-                }
-            }
-
             if (bboxArray != null && bboxArray.Size() == 4)
             {
                 float x = bboxArray.GetAsNumber(0).FloatValue();
                 float y = bboxArray.GetAsNumber(1).FloatValue();
                 float w = bboxArray.GetAsNumber(2).FloatValue() - x;
                 float h = bboxArray.GetAsNumber(3).FloatValue() - y;
-                clipping = $"{x} {y} {w} {h} re\nW n\n";
+                clipping += $"{x} {y} {w} {h} re\nW n\n";
             }
-            var result = $"q\n{colorSpaceString}{extGStateString}{matrixCm}{clipping}{contentString}\nQ\n".Split('\n');
+            var result = $"q\n{matrixCm}{clipping}{contentString}\nQ\n".Split('\n');
             for(int i= 0;i<result.Length;i++)
             {
                 string str = result[i];
@@ -210,7 +199,7 @@ namespace ObjectRemoverProject
                 {
                     str = FlattenXObjectToString(page, objName.Trim('/'));
                     if(str!=null)
-                        result[i] = "";
+                        result[i] = str;
                 }
             }
             // Wrap in q...Q to preserve graphics state
@@ -224,13 +213,14 @@ namespace ObjectRemoverProject
             ObjectDatas = new List<ObjectData>();
             SelectedRectangles = new List<Rectangle>();
             globalGraphicsBlock = new List<GraphicsBlock>();
-            ObjectDataDict = new Dictionary<GraphicsBlock, List<ObjectData>>();
+            ObjectDataDict = new Dictionary<int, ObjectData>();
             GetAllObjectData();
         }
 
         //Object Removal Form and PDFViewerForm
         private void GetAllObjectData()
         {
+            Id = 0;
             using (PdfDocument doc = new PdfDocument(new PdfReader(filePath)))
             {
                 for (int pageNo = 1; pageNo <= doc.GetNumberOfPages(); pageNo++)
@@ -264,14 +254,15 @@ namespace ObjectRemoverProject
         }
 
         //Object Removal Form and PDFViewerForm
-        private void GetAllObjectRectangles(List<GraphicsBlock> tokens, PdfPage page)
+        private List<int> GetAllObjectRectangles(List<GraphicsBlock> tokens, PdfPage page)
         {
+            List<int> childIndices = new List<int>();
             if (tokens.Count == 0)
-                return;
+                return childIndices;
 
             foreach (GraphicsBlock token in tokens)
             {
-                GetAllObjectRectangles(token.Children, page);
+                token.ChildrenIds = (GetAllObjectRectangles(token.Children, page));
                 List<string> tempLines = token.Lines.ToList();
                 var XobjectName = GetXobjectName(token.GetOwnString());
                 PdfDictionary objarray = page.GetResources().GetResource(PdfName.XObject) as PdfDictionary;
@@ -330,11 +321,9 @@ namespace ObjectRemoverProject
                                 To = indices[i + 1]
                             };
                             ObjectDatas.Add(obj);
-                            if(!ObjectDataDict.ContainsKey(token))
-                            {
-                                ObjectDataDict.Add(token, new List<ObjectData>());
-                            }
-                            ObjectDataDict[token].Add(obj);
+                            ObjectDataDict.Add(Id,obj);
+                            childIndices.Add(Id);
+                            Id++;
                         }
                     }
                 }
@@ -345,17 +334,18 @@ namespace ObjectRemoverProject
                         Rectangle = rectangle,
                         Block = token,
                         From = 0,
-                        To = token.Lines.Count
+                        To = token.Lines.Count,
+                        ID = Id
                     };
                     ObjectDatas.Add(obj);
-                    if (!ObjectDataDict.ContainsKey(token))
-                    {
-                        ObjectDataDict.Add(token, new List<ObjectData>());
-                    }
-                    ObjectDataDict[token].Add(obj);
+                    ObjectDataDict.Add(Id,obj);
+                    childIndices.Add(Id);
+                    Id++;
                 }
 
             }
+
+            return childIndices;
         }
 
         public void StructurePDF(string sourcePath, string destinationPath)
@@ -959,6 +949,18 @@ namespace ObjectRemoverProject
                     {
                         isInsideParent = true;
                         bool isChildRemoved = false;
+                        foreach(int id in objData.Block.ChildrenIds)
+                        {
+                            ObjectData data = ObjectDataDict[id];
+
+                            if (RemoveObjectUsingPolygen(data, x, y, page, out bool temp))
+                            {
+                                isChildRemoved = true;
+                                break;
+                            }
+                        }
+                        if (isChildRemoved)
+                            break;
                         foreach (var child in block.Children)
                         {
                             string childXobjectName = GetXobjectName(child.GetOwnString())?.Trim('/');
@@ -1595,7 +1597,14 @@ namespace ObjectRemoverProject
             }
             if (startIndex == -1)
                 return null;
-            return contentStream.Substring(startIndex, endIndex - startIndex - 1).Trim();
+            try
+            {
+                return contentStream.Substring(startIndex, endIndex - startIndex - 1).Trim();
+            }
+            catch (Exception)
+            {
+                return null;
+            }
         }
 
         //Object Removal Form and PDFViewerForm
@@ -1712,6 +1721,7 @@ namespace ObjectRemoverProject
     {
         public List<string> Lines { get; set; }
         public List<GraphicsBlock> Children { get; set; }
+        public List<int> ChildrenIds { get; set; }
         public GraphicsBlock Parent { get; set; }
         public bool IsWrapper { get; set; }
         public int Index;
@@ -1721,6 +1731,7 @@ namespace ObjectRemoverProject
         {
             Lines = new List<string>();
             Children = new List<GraphicsBlock>();
+            ChildrenIds = new List<int>();
             IsWrapper = isWrapper;
             Index = -1;
         }
