@@ -399,26 +399,26 @@ namespace ObjectRemoverProject
                                 case "Do":
                                     {
                                         #region Todo : ObjectManipulator 130
-                                        //var rect = CalculateRectangle.CalculateRectangleFromXObject(pdfPage, content);
-                                        //float X = rect.GetX();
-                                        //float Y = rect.GetY();
-                                        //float W = rect.GetWidth();
-                                        //float H = rect.GetHeight();
+                                        var rect = CalculateRectangle.CalculateRectangleFromXObject(pdfPage, content);
+                                        float X = rect.GetX();
+                                        float Y = rect.GetY();
+                                        float W = rect.GetWidth();
+                                        float H = rect.GetHeight();
 
-                                        //var P1 = state.Transform(new PointF(X, Y));
-                                        //var P2 = state.Transform(new PointF(X + W, Y));
-                                        //var P3 = state.Transform(new PointF(X + W, Y + H));
-                                        //var P4 = state.Transform(new PointF(X, Y + H));
+                                        var P1 = state.Transform(new PointF(X, Y));
+                                        var P2 = state.Transform(new PointF(X + W, Y));
+                                        var P3 = state.Transform(new PointF(X + W, Y + H));
+                                        var P4 = state.Transform(new PointF(X, Y + H));
 
-                                        //currentPath.Add(P1);
-                                        //currentPath.Add(P2);
-                                        //currentPath.Add(P3);
-                                        //currentPath.Add(P4);
-                                        //currentPath.Add(P1);
+                                        currentPath.Add(P1);
+                                        currentPath.Add(P2);
+                                        currentPath.Add(P3);
+                                        currentPath.Add(P4);
+                                        currentPath.Add(P1);
 
-                                        //polygons.Add(new PdfPolygon { Points = new List<PointF>(currentPath) });
-                                        //currentPath.Clear();
-                                        //ObjectIndex.Add(index+1);
+                                        polygons.Add(new PdfPolygon { Points = new List<PointF>(currentPath) });
+                                        currentPath.Clear();
+                                        ObjectIndex.Add(index + 1);
                                         #endregion
                                         break;
                                     }

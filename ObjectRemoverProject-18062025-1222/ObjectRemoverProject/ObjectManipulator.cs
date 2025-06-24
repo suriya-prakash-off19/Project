@@ -16,6 +16,9 @@ using iText.Kernel.Pdf.Canvas.Parser.Filter;
 using iText.Kernel.Pdf.Canvas.Parser;
 using iText.Kernel.Pdf.Canvas.Parser.Data;
 using System.IO;
+using iText.Kernel.Font;
+using System.Text.RegularExpressions;
+using static ObjectRemoverProject.CalculateRectangle;
 
 namespace ObjectRemoverProject
 {
@@ -35,11 +38,184 @@ namespace ObjectRemoverProject
 
         private List<ObjectData> ObjectDatas;
 
+        private Dictionary<GraphicsBlock,List<ObjectData>> ObjectDataDict;
+
         private List<GraphicsBlock> globalGraphicsBlock;
 
         public List<Rectangle> SelectedRectangles { get; private set; }
 
         public List<Dictionary<string, (int start, int end)>> locationSave;
+        
+        public static void ConvertPDF(string sourcePath,string destinationPath)
+        {
+            using (PdfDocument doc = new PdfDocument(new PdfReader(sourcePath), new PdfWriter(destinationPath)))
+            {
+                int numberOfPage = doc.GetNumberOfPages();
+                for(int pageNo = 1; pageNo <= numberOfPage; pageNo++)
+                {
+                    PdfPage page = doc.GetPage(pageNo);
+                    PdfDictionary pageDict = page.GetPdfObject();
+                    PdfObject contentobj = pageDict.Get(PdfName.Contents);
+                    List<GraphicsBlock> tokens;
+                    if (contentobj is PdfArray contentArray)
+                    {
+                        string fullContent = "";
+                        for (int i = 0; i < contentArray.Size(); i++)
+                        {
+                            if (true)
+                            {
+                                PdfStream stream = contentArray.GetAsStream(i);
+                                fullContent = Encoding.ASCII.GetString(stream.GetBytes());
+                                tokens = GetTokens(pageNo, fullContent);
+                                ChangePDFStructure(tokens, page);
+                                fullContent = "";
+                                foreach (GraphicsBlock token in tokens)
+                                {
+                                    fullContent += token.GetFormattedString() + "\n";
+                                }
+                                stream.SetData(Encoding.ASCII.GetBytes(fullContent)); 
+                            }
+                        }
+
+                    }
+                    else if (contentobj is PdfStream stream)
+                    {
+                        string content = Encoding.ASCII.GetString(stream.GetBytes());
+                        tokens = GetTokens(pageNo, content);
+                        ChangePDFStructure(tokens, page);
+                        string tempContent = "";
+
+                        foreach(GraphicsBlock token in tokens)
+                        {
+                            tempContent += token.GetFormattedString() + "\n";
+                        }
+                        stream.SetData(Encoding.ASCII.GetBytes(tempContent));
+                    }
+                }
+            }
+        }
+
+        private static void ChangePDFStructure(List<GraphicsBlock> tokens, PdfPage page)
+        {
+            foreach (GraphicsBlock token in tokens)
+            {
+                ChangePDFStructure(token.Children, page);
+                List<string> tempLines = token.Lines;
+                var XobjectName = GetXobjectName(token.GetOwnString());
+                PdfDictionary objarray = page.GetResources().GetResource(PdfName.XObject) as PdfDictionary;
+                if (objarray != null && XobjectName != null)
+                {
+                    int index = 0;
+                    for (; index < tempLines.Count; index++)
+                    {
+                        if (tempLines[index].Contains(XobjectName))
+                        {
+                            break;
+                        }
+                    }
+                    foreach (PdfName key in objarray.KeySet())
+                    {
+                        if (XobjectName != null && key.ToString().Contains(XobjectName))
+                        {
+                            PdfStream contentStream = objarray.Get(key) as PdfStream;
+                            var subType = contentStream.GetAsName(PdfName.Subtype);
+                            byte[] contentBytes = contentStream.GetBytes();
+                            if (subType.Equals(PdfName.Form))
+                            {
+                                var str = FlattenXObjectToString(page, XobjectName.Trim('/'));
+                                string contentStreamString = "";
+                                contentStreamString += Encoding.UTF8.GetString(contentBytes);
+                                if(str != null)
+                                    tempLines[index] = str;
+                            }
+                            break;
+                        }
+
+                    }
+                }
+            }
+        }
+
+        public static string FlattenXObjectToString(PdfPage page, string xObjectName)
+        {
+            var resources = page.GetResources();
+            var xObjects = resources.GetResource(PdfName.XObject) as PdfDictionary;
+
+            if (xObjects == null || !xObjects.ContainsKey(new PdfName(xObjectName)))
+                return null;
+
+            var xObjectRef = xObjects.Get(new PdfName(xObjectName));
+            var xObjectStream = xObjectRef is PdfIndirectReference
+                ? ((PdfStream)((PdfIndirectReference)xObjectRef).GetRefersTo(true))
+                : (PdfStream)xObjectRef;
+
+            // Validate that it's a Form XObject
+            if (!PdfName.Form.Equals(xObjectStream.GetAsName(PdfName.Subtype)))
+                return null;
+
+            var contentBytes = xObjectStream.GetBytes();
+            var contentString = System.Text.Encoding.ASCII.GetString(contentBytes);
+
+            // Extract /Matrix and /BBox
+            var matrixArray = xObjectStream.GetAsArray(PdfName.Matrix);
+            string matrixCm = "";
+            if (matrixArray != null && matrixArray.Size() == 6)
+            {
+                matrixCm = $"{matrixArray.GetAsNumber(0).FloatValue()} " +
+                           $"{matrixArray.GetAsNumber(1).FloatValue()} " +
+                           $"{matrixArray.GetAsNumber(2).FloatValue()} " +
+                           $"{matrixArray.GetAsNumber(3).FloatValue()} " +
+                           $"{matrixArray.GetAsNumber(4).FloatValue()} " +
+                           $"{matrixArray.GetAsNumber(5).FloatValue()} cm\n";
+            }
+
+            var resource = xObjectStream.GetAsDictionary(PdfName.Resources);
+            var bboxArray = xObjectStream.GetAsArray(PdfName.BBox);
+            string clipping = "";
+            string colorSpaceString = "";
+            string extGStateString = "";
+            var colorSpace = resource.GetAsDictionary(PdfName.ColorSpace);
+            var extGState = resource.GetAsDictionary(PdfName.ExtGState);
+            if(colorSpace!=null)
+            {
+                foreach(var key in colorSpace.KeySet())
+                {
+                    var temp = colorSpace.Get(key).GetIndirectReference();
+                    colorSpaceString += key.ToString() + " " + temp.ToString() + "\n";
+                }
+            }
+            if (extGState != null)
+            {
+                foreach (var key in extGState.KeySet())
+                {
+                    var temp = extGState.Get(key).GetIndirectReference();
+                    extGStateString += key.ToString() + " " + temp.ToString() + "\n";
+                }
+            }
+
+            if (bboxArray != null && bboxArray.Size() == 4)
+            {
+                float x = bboxArray.GetAsNumber(0).FloatValue();
+                float y = bboxArray.GetAsNumber(1).FloatValue();
+                float w = bboxArray.GetAsNumber(2).FloatValue() - x;
+                float h = bboxArray.GetAsNumber(3).FloatValue() - y;
+                clipping = $"{x} {y} {w} {h} re\nW n\n";
+            }
+            var result = $"q\n{colorSpaceString}{extGStateString}{matrixCm}{clipping}{contentString}\nQ\n".Split('\n');
+            for(int i= 0;i<result.Length;i++)
+            {
+                string str = result[i];
+                string objName = GetXobjectName(str);
+                if(objName!=null)
+                {
+                    str = FlattenXObjectToString(page, objName.Trim('/'));
+                    if(str!=null)
+                        result[i] = "";
+                }
+            }
+            // Wrap in q...Q to preserve graphics state
+            return string.Join("\n", result);
+        }
 
         public ObjectManipulator(string path)
         {
@@ -48,6 +224,7 @@ namespace ObjectRemoverProject
             ObjectDatas = new List<ObjectData>();
             SelectedRectangles = new List<Rectangle>();
             globalGraphicsBlock = new List<GraphicsBlock>();
+            ObjectDataDict = new Dictionary<GraphicsBlock, List<ObjectData>>();
             GetAllObjectData();
         }
 
@@ -118,12 +295,13 @@ namespace ObjectRemoverProject
                             if (!subType.Equals(PdfName.Image))
                             {
                                 tempLines[index] = Encoding.UTF8.GetString(contentBytes);
-                                break;
                             }
                             else
                             {
-
+                                if(token.Parent!=null)
+                                tempLines = token.Parent.Lines?.ToList();
                             }
+                            break;
                         }
 
                     }
@@ -134,35 +312,55 @@ namespace ObjectRemoverProject
                 var rectangle3 = CalculateRectangle.GetRectangle(convertorString, out int[] indices);
 
                 var lines = string.Join("\n", token.Lines);
-                
+
                 //if (rectangle == null || rectangle.GetWidth() == double.PositiveInfinity)
                 //{
-                if (rectangle3 != null)
+                if (rectangle3 != null && rectangle3.Count!=0)
                 {
                     for (int i = 0; i < rectangle3.Count; i++)
                     {
                         var rect = rectangle3[i];
                         if (rect != null)
-                            ObjectDatas.Add(new ObjectData()
+                        {
+                            var obj = new ObjectData()
                             {
                                 Rectangle = rect,
                                 Block = token,
                                 From = indices[i],
                                 To = indices[i + 1]
-                            });
+                            };
+                            ObjectDatas.Add(obj);
+                            if(!ObjectDataDict.ContainsKey(token))
+                            {
+                                ObjectDataDict.Add(token, new List<ObjectData>());
+                            }
+                            ObjectDataDict[token].Add(obj);
+                        }
                     }
                 }
-                //}
-                if (rectangle != null && rectangle.GetWidth() != double.PositiveInfinity)
-                    ObjectDatas.Add(new ObjectData()
+                else if (rectangle != null && rectangle.GetWidth() != double.PositiveInfinity)
+                {
+                    var obj = new ObjectData()
                     {
                         Rectangle = rectangle,
                         Block = token,
                         From = 0,
                         To = token.Lines.Count
-                    });
+                    };
+                    ObjectDatas.Add(obj);
+                    if (!ObjectDataDict.ContainsKey(token))
+                    {
+                        ObjectDataDict.Add(token, new List<ObjectData>());
+                    }
+                    ObjectDataDict[token].Add(obj);
+                }
 
             }
+        }
+
+        public void StructurePDF(string sourcePath, string destinationPath)
+        {
+
         }
 
         //Object Removal Form
@@ -612,9 +810,101 @@ namespace ObjectRemoverProject
                 bool isChanged = false;
                 foreach (var objectData in ObjectDatas)
                 {
-                    if (objectData.Rectangle.Overlaps(clickedArea) && objectData.Block.PageNo == pageNo)
+                    #region TODO:Remove Text
+                    var path = string.Join("\n", objectData.Block.GetOwnString());
+                    var tempLines = objectData.Block.Lines.ToList();
+                    float x1 = 0;
+                    float y1 = 0;
+                    PdfFont font = null;
+                    float fontSize = 1;
+                    if (ContainsTag("BT", path))
                     {
+                        bool canRemove = false;
+                        Matrix3x3 currentMatrix = new Matrix3x3();
+                        for (int i = 0; i < tempLines.Count; i++)
+                        {
+                            if (ContainsTag("Tm", tempLines[i]) || ContainsTag("Td", tempLines[i]) || ContainsTag("'", tempLines[i]))
+                            {
+                                canRemove = false;
+                                Stack<float> tempList = new Stack<float>();
+                                foreach (var val in tempLines[i].Split(' '))
+                                {
+                                    if (float.TryParse(val, out float result))
+                                    {
+                                        tempList.Push(result);
+                                    }
+                                    else if (val == "Tm" )
+                                    {
+                                        float f = tempList.Pop();
+                                        float e = tempList.Pop();
+                                        float d = tempList.Pop();
+                                        float c = tempList.Pop();
+                                        float b = tempList.Pop();
+                                        float a = tempList.Pop();
+                                        
+                                        currentMatrix = new Matrix3x3(a, b, c, d, e, f);
+                                        x1 = e;
+                                        y1 = f;
+                                    }
+                                    
+                                    else if (val == "Td")
+                                    {
+                                        float f = tempList.Pop();
+                                        float e = tempList.Pop();
+                                        (e, f) = ((float, float))currentMatrix.Transform(e, f);
+                                        x1 = Math.Min(x1, e);
+                                        y1 = Math.Min(y1, f);
+                                        //x1 +=e;
+                                        //y1 +=f;
 
+                                    }
+
+
+                                }
+
+                            }
+                            else if (ContainsTag("Tf", tempLines[i]))
+                            {
+                                PdfDictionary fonts = page.GetResources().GetResource(PdfName.Font);
+                                var split = tempLines[i].Split(' ');
+                                string fontFamily = split[0].Trim('/');
+                                fontSize = float.Parse(split[1]);
+                                PdfName fontKey = new PdfName(fontFamily);
+                                var fontDict = fonts.GetAsDictionary(fontKey);
+                                font = PdfFontFactory.CreateFont(fontDict);
+                            }
+
+                            else if ((ContainsTag("Tj", tempLines[i]) || ContainsTag("TJ", tempLines[i])))
+                            {
+                                float width = 30;
+                                float height = 5;
+                                if (font != null)
+                                {
+                                    width = font != null ? font.GetWidth(ExtractTextFromTj(tempLines[i]), fontSize) : 30;
+                                    var bbox = font.GetFontProgram().GetFontMetrics().GetBbox();
+                                    height = (bbox[3] - bbox[1]) * fontSize / 1000f;
+                                }
+                                //var tempMatrix = new Matrix3x3(currentMatrix.A, currentMatrix.B, currentMatrix.C, currentMatrix.D, x1, y1);
+                                (float x2, float y2) =((float,float)) currentMatrix.Transform(width, height);
+                                //(float X2, float Y2) =((float,float)) tempMatrix.Transform(width, height);
+                                Rectangle tempRect1 = new Rectangle(x - 1, y - 1, 2, 2);
+                                Rectangle tempRect2 = new Rectangle(Math.Min(x1, x2) - 1,Math.Min(y1,y2) - 1,Math.Abs(x2-x1),Math.Abs(y2-y1));
+                                canRemove = tempRect1.Overlaps(tempRect2);
+                                x1 += width;
+                                if (canRemove)
+                                {
+                                    tempLines[i] = "";
+                                    isChanged = true;
+                                    break;
+                                }
+                            }
+                        }
+                        objectData.Block.Lines = tempLines;
+                    }
+                    #endregion
+
+                    if (objectData.Rectangle.Overlaps(clickedArea) && objectData.Block.PageNo == pageNo && !isChanged)
+                    {
                         #region Remove based on the Parent
                         //bool isParentModified = false;
                         //bool isInsideParent = false;
@@ -627,65 +917,13 @@ namespace ObjectRemoverProject
                         //    isChanged = RemoveObjectUsingPolygen(val.Block,x,y,page,out isInsideParent);
                         //} 
                         #endregion
-
                         isChanged = RemoveObjectUsingPolygen(objectData, x, y, page, out bool isInsideParent);
-
-                        #region TODO:Remove Text
-                        var path = string.Join("\n", objectData.Block.GetOwnString());
-                        var tempLines = objectData.Block.Lines.ToList();
-                        float X = 0;
-                        float Y = 0;
-                        if (ContainsTag("BT", path))
-                        {
-                            bool canRemove = false;
-                            for (int i = 0; i < tempLines.Count; i++)
-                            {
-                                if (ContainsTag("Tm", tempLines[i]) || ContainsTag("Td", tempLines[i]))
-                                {
-                                    canRemove = false;
-                                    Stack<float> tempList = new Stack<float>();
-                                    foreach (var val in tempLines[i].Split(' '))
-                                    {
-                                        if (float.TryParse(val, out float result))
-                                        {
-                                            tempList.Push(result);
-                                        }
-                                        else if (val == "Tm" || val == "Td")
-                                        {
-                                            float tempY = tempList.Pop();
-                                            float tempX = tempList.Pop();
-                                            if (val == "Td")
-                                            {
-                                                X += tempX;
-                                                Y += tempY;
-                                            }
-                                            else
-                                            {
-                                                Y = tempY;
-                                                X = tempX;
-                                            }
-                                            Rectangle tempRect1 = new Rectangle(x - 2, y - 2, 4, 4);
-                                            Rectangle tempRect2 = new Rectangle(X - 4, Y - 4, 10, 10);
-                                            canRemove = tempRect1.Overlaps(tempRect2);
-                                        }
-
-                                    }
-
-                                }
-                                if (canRemove)
-                                {
-                                    if ((ContainsTag("Tj", tempLines[i]) || ContainsTag("TJ", tempLines[i])))
-                                        tempLines[i] = "";
-                                    isChanged = true;
-                                }
-                            }
-                        }
-                        objectData.Block.Lines = tempLines;
-                        #endregion
-
-                        if (isChanged)
-                            break;
                     }
+
+
+                    if (isChanged)
+                        break;
+
                 }
 
 
@@ -714,7 +952,7 @@ namespace ObjectRemoverProject
             foreach (var polygen in polygenPoints)
             {
                 string blockData = string.Join("\n", requiredString.Split('\n').Skip(objIndex[index].Item1).Take(objIndex[index].Item2 - objIndex[index].Item1));
-                
+
                 if (CalculatePolygen.IsPointInsideOrNearPolygon(new System.Drawing.PointF(x, y), polygen.Points, isFill: isfill))
                 {
                     if (ContainsTag("W n", blockData) || ContainsTag("W*", blockData) || ContainsTag("W", blockData))
@@ -724,8 +962,8 @@ namespace ObjectRemoverProject
                         foreach (var child in block.Children)
                         {
                             string childXobjectName = GetXobjectName(child.GetOwnString())?.Trim('/');
-                            var isXobject = page.GetResources().GetResource(PdfName.XObject)?.GetAsStream(new PdfName(childXobjectName==null?"":childXobjectName))?.GetAsName(PdfName.Subtype);
-                            if (childXobjectName != null &&(isXobject ==null || !isXobject.Equals(PdfName.Form)))
+                            var isXobject = page.GetResources().GetResource(PdfName.XObject)?.GetAsStream(new PdfName(childXobjectName == null ? "" : childXobjectName))?.GetAsName(PdfName.Subtype);
+                            if (childXobjectName != null && (isXobject == null || !isXobject.Equals(PdfName.Form)))
                             {
                                 for (int i = 0; i < child.Lines.Count; i++)
                                 {
@@ -1011,10 +1249,11 @@ namespace ObjectRemoverProject
         }
 
         //Object Removal Form and PDFViewerForm
-        private List<GraphicsBlock> GetTokens(int pageNo, string contentStream)
+        private static List<GraphicsBlock> GetTokens(int pageNo, string contentStream)
         {
             #region block Separation using q to Q tags
             string[] lines = contentStream.Split('\n');
+            string[] lines2 = DivideContents(contentStream).ToArray();
             List<GraphicsBlock> rootBlocks = new List<GraphicsBlock>();
             Stack<GraphicsBlock> stack = new Stack<GraphicsBlock>();
             List<string> looseblocks = new List<string>();
@@ -1293,20 +1532,55 @@ namespace ObjectRemoverProject
         }
 
         //Object Removal Form and PDFViewerForm
-        private bool ContainsTag(string v, string  line)
+        private static bool ContainsTag(string v, string line)
         {
             if (!line.Contains(v))
                 return false;
-            int index = line.IndexOf(v);
-            if (index != 0 && (line[index - 1] != ' ' && line[index - 1] != '\n' && line[index - 1] != '\r' && line[index - 1] != ']' && line[index - 1] != ')'))
-                return false;
+            int count = 0;
+            int index = 0;
 
-            index += v.Length;
-            return index == line.Length || line[index] == ' ' || line[index] == '\r' || line[index] == '\n';
+            while ((index = line.IndexOf(v, index, StringComparison.Ordinal)) != -1)
+            {
+                if (index == 0 || (line[index - 1] == ' ' || line[index - 1] == '\n' || line[index - 1] == '\r' || line[index - 1] == ']' || line[index - 1] == ')' || line[index - 1] == '>'))
+                {
+                    int tempIndex = index + v.Length;
+                    if(tempIndex == line.Length || line[tempIndex] == ' ' || line[tempIndex] == '\r' || line[tempIndex] == '\n')
+                    {
+                        return true;
+                    }
+                }
+                index += v.Length;
+                count++;
+            }
+            return false ;
+        }
+
+        private static List<string> DivideContents(string s)
+        {
+            string temp = "";
+            List<string> tempList = new List<string>();
+            foreach(string st in s.Split('\n'))
+            {
+                foreach(string str in st.Split(' '))
+                {
+                    temp += str+" " ;
+                    if (IsOperator(str))
+                    {
+                        tempList.Add(temp);
+                        temp = "";
+                    }
+                }
+                if(temp!="")
+                {
+                    tempList.Add(temp);
+                    temp = "";
+                }
+            }
+            return tempList;
         }
 
         //Object Removal Form and PDFViewerForm
-        private string GetXobjectName(string contentStream)
+        private static string GetXobjectName(string contentStream)
         {
             int startIndex = -1;
             if (contentStream.Contains("Fm"))
@@ -1346,9 +1620,9 @@ namespace ObjectRemoverProject
             locationSave.Clear();
         }
 
-        private bool IsOperator(string cmd)
+        private static bool IsOperator(string cmd)
         {
-            string[] operators = { "q", "Q", "cm", "m", "l", "c", "h", "S", "s", "f", "f*", "re", "Do", "W", "W*", "n", "TJ", "Tj", "Tm", "n" };
+            string[] operators = { "q", "Q", "cm", "m", "l", "c", "h", "S", "s", "f", "f*", "re", "Do", "W", "W*", "n", "TJ", "Tj", "Tm", "n", "v","y","Td","TD","'" };
             foreach (var Operator in operators)
             {
                 if (ContainsTag(Operator, cmd))
@@ -1357,6 +1631,80 @@ namespace ObjectRemoverProject
                 }
             }
             return false;
+        }
+
+        public string ExtractTextFromTj(string tjArray)
+        {
+            // Regex to match strings in parentheses
+            MatchCollection matches = Regex.Matches(tjArray, @"\((.*?((?<!\\))?)\)");
+
+            var builder = new StringBuilder();
+
+            foreach (Match match in matches)
+            {
+                string raw = match.Groups[1].Value;
+                builder.Append(DecodePdfString(raw));
+            }
+
+            return builder.ToString();
+        }
+
+        private string DecodePdfString(string input)
+        {
+            var output = new StringBuilder();
+            for (int i = 0; i < input.Length;)
+            {
+                if (input[i] == '\\')
+                {
+                    if (i + 1 >= input.Length)
+                        break;
+
+                    char next = input[i + 1];
+                    switch (next)
+                    {
+                        case 'n': output.Append('\n'); i += 2; break;
+                        case 'r': output.Append('\r'); i += 2; break;
+                        case 't': output.Append('\t'); i += 2; break;
+                        case 'b': output.Append('\b'); i += 2; break;
+                        case 'f': output.Append('\f'); i += 2; break;
+                        case '(': output.Append('('); i += 2; break;
+                        case ')': output.Append(')'); i += 2; break;
+                        case '\\': output.Append('\\'); i += 2; break;
+                        default:
+                            // Octal escape (\ddd)
+                            if (char.IsDigit(next))
+                            {
+                                int len = 1;
+                                while (len < 3 && i + 1 + len < input.Length && char.IsDigit(input[i + 1 + len]))
+                                    len++;
+
+                                string octal = input.Substring(i + 1, len);
+                                try
+                                {
+                                    int val = Convert.ToInt32(octal, 8);
+                                    output.Append((char)val);
+                                }
+                                catch { }
+
+                                i += 1 + len;
+                            }
+                            else
+                            {
+                                // Unknown escape — treat as literal
+                                output.Append(next);
+                                i += 2;
+                            }
+                            break;
+                    }
+                }
+                else
+                {
+                    output.Append(input[i]);
+                    i++;
+                }
+            }
+
+            return output.ToString();
         }
     }
 
@@ -1417,9 +1765,10 @@ namespace ObjectRemoverProject
                 result.Add("Q");
             }
             int currentIndex = 0;
+            List<GraphicsBlock> childInsert;
             for (int i = 0; i < Lines.Count; i++)
             {
-                var childInsert = Children.Where(x => x.Index - Index == currentIndex).ToList();
+                childInsert = Children.Where(x => x.Index - Index == currentIndex).ToList();
                 while (childInsert.Count != 0)
                 {
                     foreach (var child in childInsert)
@@ -1434,7 +1783,17 @@ namespace ObjectRemoverProject
                 result.Add(Lines[i]);
                 currentIndex += 1;
             }
-
+            childInsert = Children.Where(x => x.Index - Index == currentIndex).ToList();
+            while (childInsert.Count != 0)
+            {
+                foreach (var child in childInsert)
+                {
+                    var childLines = child.GetFormattedString();
+                    result.Add(childLines);
+                    currentIndex += child.GetTotalLines();
+                }
+                childInsert = Children.Where(x => x.Index - Index == currentIndex).ToList();
+            }
             return string.Join("\n", result.ToArray());
         }
 

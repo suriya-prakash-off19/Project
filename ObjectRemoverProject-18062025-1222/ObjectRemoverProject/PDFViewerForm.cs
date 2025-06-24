@@ -43,8 +43,6 @@ namespace ObjectRemoverProject
             {
                 Directory.CreateDirectory(primaryDict);
             }
-            
-
         }
 
         private void InitializePDFViewer()
@@ -129,16 +127,18 @@ namespace ObjectRemoverProject
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     currentPdfPath = openFileDialog.FileName;
-
+                    string destinPath = currentPdfPath;
+                    //string destinPath = @"D:\PDFRemoval\temp.pdf";
+                    //ObjectManipulator.ConvertPDF(currentPdfPath, destinPath);
                     if (File.Exists(pdfPathForViewer))
                         File.Delete(pdfPathForViewer);
-                    File.Copy(currentPdfPath, pdfPathForViewer);
+                    File.Copy(destinPath, pdfPathForViewer);
                     if (File.Exists(pdfPathForManipulator))
                         File.Delete(pdfPathForManipulator);
-                    File.Copy(currentPdfPath, pdfPathForManipulator);
+                    File.Copy(destinPath, pdfPathForManipulator);
                     LoadAndReloadPdf(pdfPathForViewer);
                     objectManipulator?.Dispose();
-                    objectManipulator = new ObjectManipulator(pdfPathForManipulator);
+                    objectManipulator = new ObjectManipulator(destinPath);
                 }
             }
 
