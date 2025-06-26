@@ -276,8 +276,18 @@ namespace ObjectRemoverProject
 
                     switch (token)
                     {
+                        case "Td":
+                        case "TD":
+                            {
+                                double f = popDouble();
+                                double e = popDouble();
+                                currentMatrix = new Matrix3x3(currentMatrix.A, currentMatrix.B, currentMatrix.C, currentMatrix.D, e, f);
+                                break;
+                            }
                         case "Tm": 
                             {
+                                if (!isTextInside)
+                                    break;
                                 if (operandStack.Count < 6)
                                 {
                                     operandStack.Clear();
@@ -307,6 +317,8 @@ namespace ObjectRemoverProject
                             }
                         case "cm":
                             {
+                                if (isTextInside)
+                                    break;
                                 if (operandStack.Count < 6)
                                 {
                                     operandStack.Clear();
@@ -326,6 +338,8 @@ namespace ObjectRemoverProject
                             }
                         case "m":
                             {
+                                if (isTextInside)
+                                    break;
                                 if (operandStack.Count < 2)
                                 {
                                     operandStack.Clear();
@@ -342,6 +356,8 @@ namespace ObjectRemoverProject
                             }
                         case "l":
                             {
+                                if (isTextInside)
+                                    break;
                                 if (operandStack.Count < 2)
                                 {
                                     operandStack.Clear();
@@ -358,6 +374,8 @@ namespace ObjectRemoverProject
                             }
                         case "c":
                             {
+                                if (isTextInside)
+                                    break;
                                 if (operandStack.Count < 6)
                                 {
                                     operandStack.Clear();
@@ -412,7 +430,7 @@ namespace ObjectRemoverProject
                                     bbox.Update(Tx + textWidth, Ty + textHeight);
                                     operandStack.Clear();
                                 }
-                                break; 
+                                break;
                             }
                         default:
                             {

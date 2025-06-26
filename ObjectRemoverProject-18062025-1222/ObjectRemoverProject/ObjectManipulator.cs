@@ -299,11 +299,10 @@ namespace ObjectRemoverProject
                 }
 
                 string convertorString = string.Join("\n", tempLines);
+                
                 var rectangle = CalculateRectangle.CalculateBoundingBoxFromContentStream(convertorString);
                 var rectangle3 = CalculateRectangle.GetRectangle(convertorString, out int[] indices);
-
                 var lines = string.Join("\n", token.Lines);
-
                 //if (rectangle == null || rectangle.GetWidth() == double.PositiveInfinity)
                 //{
                 if (rectangle3 != null && rectangle3.Count!=0)
@@ -327,7 +326,7 @@ namespace ObjectRemoverProject
                         }
                     }
                 }
-                else if (rectangle != null && rectangle.GetWidth() != double.PositiveInfinity)
+                if (rectangle != null && rectangle.GetWidth() != double.PositiveInfinity)
                 {
                     var obj = new ObjectData()
                     {
@@ -800,123 +799,117 @@ namespace ObjectRemoverProject
                 bool isChanged = false;
                 foreach (var objectData in ObjectDatas)
                 {
-                    #region TODO:Remove Text
-                    var path = string.Join("\n", objectData.Block.GetOwnString());
-                    var tempLines = objectData.Block.Lines.ToList();
-                    float x1 = 0;
-                    float y1 = 0;
-                    PdfFont font = null;
-                    float fontSize = 1;
-                    if (ContainsTag("BT", path))
-                    {
-                        bool canRemove = false;
-                        Matrix3x3 currentMatrix = new Matrix3x3();
-                        for (int i = 0; i < tempLines.Count; i++)
-                        {
-                            if (ContainsTag("Tm", tempLines[i]) || ContainsTag("Td", tempLines[i]) || ContainsTag("'", tempLines[i]))
-                            {
-                                canRemove = false;
-                                Stack<float> tempList = new Stack<float>();
-                                foreach (var val in tempLines[i].Split(' '))
-                                {
-                                    if (float.TryParse(val, out float result))
-                                    {
-                                        tempList.Push(result);
-                                    }
-                                    else if (val == "Tm" )
-                                    {
-                                        float f = tempList.Pop();
-                                        float e = tempList.Pop();
-                                        float d = tempList.Pop();
-                                        float c = tempList.Pop();
-                                        float b = tempList.Pop();
-                                        float a = tempList.Pop();
-                                        
-                                        currentMatrix = new Matrix3x3(a, b, c, d, e, f);
-                                        x1 = e;
-                                        y1 = f;
-                                    }
-                                    
-                                    else if (val == "Td")
-                                    {
-                                        float f = tempList.Pop();
-                                        float e = tempList.Pop();
-                                        (e, f) = ((float, float))currentMatrix.Transform(e, f);
-                                        x1 = Math.Min(x1, e);
-                                        y1 = Math.Min(y1, f);
-                                        //x1 +=e;
-                                        //y1 +=f;
+                    //#region TODO:Remove Text
+                    //var path = string.Join("\n", objectData.Block.GetOwnString());
+                    //var tempLines = objectData.Block.Lines.ToList();
+                    //float x1 = float.MaxValue;
+                    //float y1 = float.MaxValue;
+                    //PdfFont font = null;
+                    //float fontSize = 1;
+                    //float prevX = 0, prevY = 0;
+                    //if (ContainsTag("BT", path))
+                    //{
+                    //    bool canRemove = false;
+                    //    Matrix3x3 currentMatrix = new Matrix3x3();
+                    //    for (int i = 0; i < tempLines.Count; i++)
+                    //    {
+                    //        if (ContainsTag("Tm", tempLines[i]) || ContainsTag("TM", tempLines[i]) || ContainsTag("TD", tempLines[i]) || ContainsTag("Td", tempLines[i]) || ContainsTag("'", tempLines[i]))
+                    //        {
+                    //            canRemove = false;
+                    //            Stack<float> tempList = new Stack<float>();
+                    //            foreach (var val in tempLines[i].Split(' '))
+                    //            {
+                    //                if (float.TryParse(val, out float result))
+                    //                {
+                    //                    tempList.Push(result);
+                    //                }
+                    //                else if (val == "Tm" || val == "TM")
+                    //                {
+                    //                    float f = tempList.Pop();
+                    //                    float e = tempList.Pop();
+                    //                    float d = tempList.Pop();
+                    //                    float c = tempList.Pop();
+                    //                    float b = tempList.Pop();
+                    //                    float a = tempList.Pop();
 
-                                    }
+                    //                    currentMatrix = new Matrix3x3(a, b, c, d, e, f);
+                    //                    x1 = e;
+                    //                    y1 = f;
+                    //                }
+
+                    //                else if (val == "Td" || val == "TD")
+                    //                {
+                    //                    float f = tempList.Pop();
+                    //                    float e = tempList.Pop();
+                    //                    (e, f) = ((float, float))currentMatrix.Transform(e, f);
+                    //                    if (val == "TD")
+                    //                    {
+                    //                        prevX = e;
+                    //                        prevY = f;
+                    //                    }
+                    //                    currentMatrix.E = e;
+                    //                    currentMatrix.F = f;
+                    //                    x1 = e;
+                    //                    y1 = f;
+
+                    //                }
 
 
-                                }
+                    //            }
 
-                            }
-                            else if (ContainsTag("Tf", tempLines[i]))
-                            {
-                                PdfDictionary fonts = page.GetResources().GetResource(PdfName.Font);
-                                var split = tempLines[i].Split(' ');
-                                string fontFamily = split[0].Trim('/');
-                                fontSize = float.Parse(split[1]);
-                                PdfName fontKey = new PdfName(fontFamily);
-                                var fontDict = fonts.GetAsDictionary(fontKey);
-                                font = PdfFontFactory.CreateFont(fontDict);
-                            }
+                    //        }
+                    //        else if (ContainsTag("T*", tempLines[i]))
+                    //        {
+                    //            float e = prevX;
+                    //            float f = prevY;
+                    //            (e, f) = ((float, float))currentMatrix.Transform(e, f);
+                    //            x1 = e;
+                    //            y1 = f;
+                    //        }
+                    //        else if (ContainsTag("Tf", tempLines[i]))
+                    //        {
+                    //            PdfDictionary fonts = page.GetResources().GetResource(PdfName.Font);
+                    //            var split = tempLines[i].Split(' ');
+                    //            string fontFamily = split[0].Trim('/');
+                    //            fontSize = float.Parse(split[1]);
+                    //            PdfName fontKey = new PdfName(fontFamily);
+                    //            var fontDict = fonts.GetAsDictionary(fontKey);
+                    //            font = PdfFontFactory.CreateFont(fontDict);
+                    //        }
 
-                            else if ((ContainsTag("Tj", tempLines[i]) || ContainsTag("TJ", tempLines[i])))
-                            {
-                                float width = 30;
-                                float height = 5;
-                                if (font != null)
-                                {
-                                    width = font != null ? font.GetWidth(ExtractTextFromTj(tempLines[i]), fontSize) : 30;
-                                    var bbox = font.GetFontProgram().GetFontMetrics().GetBbox();
-                                    height = (bbox[3] - bbox[1]) * fontSize / 1000f;
-                                }
-                                //var tempMatrix = new Matrix3x3(currentMatrix.A, currentMatrix.B, currentMatrix.C, currentMatrix.D, x1, y1);
-                                (float x2, float y2) =((float,float)) currentMatrix.Transform(width, height);
-                                //(float X2, float Y2) =((float,float)) tempMatrix.Transform(width, height);
-                                Rectangle tempRect1 = new Rectangle(x - 1, y - 1, 2, 2);
-                                Rectangle tempRect2 = new Rectangle(Math.Min(x1, x2) - 1,Math.Min(y1,y2) - 1,Math.Abs(x2-x1),Math.Abs(y2-y1));
-                                canRemove = tempRect1.Overlaps(tempRect2);
-                                x1 += width;
-                                if (canRemove)
-                                {
-                                    tempLines[i] = "";
-                                    isChanged = true;
-                                    break;
-                                }
-                            }
-                        }
-                        objectData.Block.Lines = tempLines;
-                    }
-                    #endregion
+                    //        else if ((ContainsTag("Tj", tempLines[i]) || ContainsTag("TJ", tempLines[i])))
+                    //        {
+                    //            float width = ExtractTextFromTj(tempLines[i]).Length;
+                    //            float height = 5;
+                    //            if (font != null)
+                    //            {
+                    //                width = font != null ? font.GetWidth(ExtractTextFromTj(tempLines[i]), fontSize) : 30;
+                    //                var bbox = font.GetFontProgram().GetFontMetrics().GetBbox();
+                    //                height = (bbox[3] - bbox[1]) * fontSize / 1000f;
+                    //            }
+                    //            (float x2, float y2) = ((float, float))currentMatrix.Transform(width, height);
+                    //            Rectangle tempRect1 = new Rectangle(x - 1, y - 1, 2, 2);
+                    //            Rectangle tempRect2 = new Rectangle(Math.Min(x1, x2) - 1, Math.Min(y1, y2) - 1, Math.Abs(x2 - x1), Math.Abs(y2 - y1));
+                    //            canRemove = tempRect1.Overlaps(tempRect2);
+                    //            if (canRemove)
+                    //            {
+                    //                tempLines[i] = "";
+                    //                isChanged = true;
+                    //                break;
+                    //            }
+                    //        }
+                    //    }
+                    //    objectData.Block.Lines = tempLines;
+                    //}
+                    //#endregion
 
                     if (objectData.Rectangle.Overlaps(clickedArea) && objectData.Block.PageNo == pageNo && !isChanged)
                     {
-                        #region Remove based on the Parent
-                        //bool isParentModified = false;
-                        //bool isInsideParent = false;
-                        //if(isParentContainer(val.Block.Parent))
-                        //{
-                        //    isParentModified = isChanged = RemoveObjectUsingPolygen(val.Block.Parent,x,y,page,out isInsideParent);
-                        //}
-                        //if(isInsideParent || !isParentModified)
-                        //{
-                        //    isChanged = RemoveObjectUsingPolygen(val.Block,x,y,page,out isInsideParent);
-                        //} 
-                        #endregion
                         isChanged = RemoveObjectUsingPolygen(objectData, x, y, page, out bool isInsideParent);
                     }
-
-
                     if (isChanged)
                         break;
-
                 }
-
-
                 #endregion
 
                 SetFullContent(contentobj, array, pageNo);
@@ -945,20 +938,22 @@ namespace ObjectRemoverProject
 
                 if (CalculatePolygen.IsPointInsideOrNearPolygon(new System.Drawing.PointF(x, y), polygen.Points, isFill: isfill))
                 {
+                    foreach (int id in objData.Block.ChildrenIds)
+                    {
+                        ObjectData data = ObjectDataDict[id];
+
+                        if (RemoveObjectUsingPolygen(data, x, y, page, out bool temp))
+                        {
+                            isChanged = true;
+                            break;
+                        }
+                    }
+                    if (isChanged)
+                        break;
                     if (ContainsTag("W n", blockData) || ContainsTag("W*", blockData) || ContainsTag("W", blockData))
                     {
                         isInsideParent = true;
                         bool isChildRemoved = false;
-                        foreach(int id in objData.Block.ChildrenIds)
-                        {
-                            ObjectData data = ObjectDataDict[id];
-
-                            if (RemoveObjectUsingPolygen(data, x, y, page, out bool temp))
-                            {
-                                isChildRemoved = true;
-                                break;
-                            }
-                        }
                         if (isChildRemoved)
                             break;
                         foreach (var child in block.Children)
@@ -995,10 +990,6 @@ namespace ObjectRemoverProject
                         }
                         if (!isChildRemoved)
                         {
-                            foreach (var child in block.Children)
-                            {
-                                child.Parent = null;
-                            }
                             for (int i = objData.From + objIndex[index].Item1; i < objData.From + objIndex[index].Item2; i++)
                             {
 
@@ -1163,7 +1154,7 @@ namespace ObjectRemoverProject
         {
             List<string> checkList = new List<string>
             {
-                "m","l","c","re","Do","v","y","h","H"
+                "m","l","c","re","Do","v","y","h","H","Sh","sh"
             };
             foreach (var check in checkList)
             {
@@ -1263,7 +1254,7 @@ namespace ObjectRemoverProject
 
             foreach (string rawLine in lines)
             {
-                string line = rawLine.TrimEnd('\r');
+                string line = rawLine.Trim('\r');
 
                 if (ContainsTag("q", line))
                 {
@@ -1568,7 +1559,7 @@ namespace ObjectRemoverProject
                     temp += str+" " ;
                     if (IsOperator(str))
                     {
-                        tempList.Add(temp);
+                        tempList.Add(temp.Trim());
                         temp = "";
                     }
                 }
@@ -1645,13 +1636,15 @@ namespace ObjectRemoverProject
         public string ExtractTextFromTj(string tjArray)
         {
             // Regex to match strings in parentheses
-            MatchCollection matches = Regex.Matches(tjArray, @"\((.*?((?<!\\))?)\)");
+            MatchCollection matches = Regex.Matches(tjArray, @"\((.*?(?<!\\))\)|<([0-9A-Fa-f\s]*)>");
 
             var builder = new StringBuilder();
 
             foreach (Match match in matches)
             {
-                string raw = match.Groups[1].Value;
+                string raw = match.Groups[1].Success
+                                ? match.Groups[1].Value   // (...) group matched
+                                : match.Groups[2].Value;
                 builder.Append(DecodePdfString(raw));
             }
 
@@ -1715,6 +1708,59 @@ namespace ObjectRemoverProject
 
             return output.ToString();
         }
+
+        public float GetTextWidthUniversal(string input, PdfFont font, float fontSize)
+        {
+            float totalWidth = 0;
+
+            // Detect hex-encoded: enclosed in angle brackets like <00380051...>
+            bool isHexEncoded =  (input.StartsWith("<") && input.EndsWith(">")) || Regex.IsMatch(input, @"\A[0-9A-Fa-f\s]+\z");   
+
+            if (isHexEncoded)
+            {
+                // Strip < and > and clean whitespace
+                string hex = input.Trim().Trim('<','>').Replace(" ", "");
+
+                byte[] bytes = Enumerable.Range(0, hex.Length / 2)
+                    .Select(i => Convert.ToByte(hex.Substring(i * 2, 2), 16))
+                    .ToArray();
+                string tem = "";
+                if (font is PdfType0Font type0Font)
+                {
+                    // Use 2-byte CID sequences
+                    for (int i = 0; i < bytes.Length - 1; i += 2)
+                    {
+                        int cid = (bytes[i] << 8) | bytes[i + 1];
+                        tem += (char)cid;
+                        totalWidth += (type0Font.GetWidth(cid) / 1000f) * fontSize;
+                    }
+                }
+                else
+                {
+                    foreach (byte b in bytes)
+                    {
+                        totalWidth += (font.GetWidth(b) / 1000f) * fontSize;
+                    }
+                }
+            }
+            else
+            {
+                // Plain readable literal string (inside parentheses or just raw)
+                // Remove parentheses if present
+                if (input.StartsWith("(") && input.EndsWith(")"))
+                    input = input.Substring(1, input.Length - 2);
+
+                byte[] bytes = font.ConvertToBytes(input);
+
+                foreach (byte b in bytes)
+                {
+                    totalWidth += (font.GetWidth(b) / 1000f) * fontSize;
+                }
+            }
+
+            return totalWidth;
+        }
+
     }
 
     public class GraphicsBlock
