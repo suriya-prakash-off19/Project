@@ -452,12 +452,12 @@ namespace ObjectRemoverProject
         }
 
         /// <summary>
-        /// 
+        /// Calculate the distance between a segment and a point
         /// </summary>
-        /// <param name="p"></param>
-        /// <param name="a"></param>
-        /// <param name="b"></param>
-        /// <returns></returns>
+        /// <param name="p">Point to be checked</param>
+        /// <param name="a">Point 1 of the segment</param>
+        /// <param name="b">Point 2 of the segment</param>
+        /// <returns>Distance between a segment and a point</returns>
         private static float DistanceToSegment(PointF p, PointF a, PointF b)
         {
             float dx = b.X - a.X;
