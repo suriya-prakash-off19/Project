@@ -134,7 +134,7 @@ namespace ObjectRemoverProject
         {
             pdfDocument?.Dispose();
             objectManipulator?.ResetDocument();
-            //LoadAndReloadPdf();
+            LoadAndReloadPdf(File.ReadAllBytes(currentPdfPath));
         }
     }
 }
