@@ -229,7 +229,6 @@ D:\Removal Project\Project\ObjectRemoverProject-18062025-1222\ObjectRemoverProje
 D:\Removal Project\Project\ObjectRemoverProject-18062025-1222\ObjectRemoverProject\bin\Debug\HalconEditorTools.dll
 D:\Removal Project\Project\ObjectRemoverProject-18062025-1222\ObjectRemoverProject\bin\Debug\HalconRegionEditor.dll
 D:\Removal Project\Project\ObjectRemoverProject-18062025-1222\ObjectRemoverProject\obj\Debug\ObjectRemoverProject.exe.config
-D:\Removal Project\Project\ObjectRemoverProject-18062025-1222\ObjectRemoverProject\obj\Debug\ObjectRemoverProject.ObjectRemovalForm.resources
 D:\Removal Project\Project\ObjectRemoverProject-18062025-1222\ObjectRemoverProject\obj\Debug\ObjectRemoverProject.PDFViewerForm.resources
 D:\Removal Project\Project\ObjectRemoverProject-18062025-1222\ObjectRemoverProject\obj\Debug\ObjectRemoverProject.Properties.Resources.resources
 D:\Removal Project\Project\ObjectRemoverProject-18062025-1222\ObjectRemoverProject\obj\Debug\ObjectRemoverProject.csproj.GenerateResource.cache

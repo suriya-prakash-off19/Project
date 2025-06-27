@@ -82,15 +82,8 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="CalculatePolygen.cs" />
-    <Compile Include="ObjectRemovalForm.cs">
-      <SubType>Form</SubType>
-    </Compile>
-    <Compile Include="ObjectRemovalForm.Designer.cs">
-      <DependentUpon>ObjectRemovalForm.cs</DependentUpon>
-    </Compile>
-    <Compile Include="ObjectManipulator.cs" />
-    <Compile Include="PDFContents.cs" />
-    <Compile Include="PDfProcessor.cs" />
+    <Compile Include="GraphicsBlock.cs" />
+    <Compile Include="PdfObjectHandler.cs" />
     <Compile Include="PDFViewerForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -100,9 +93,6 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="CalculateRectangle.cs" />
-    <EmbeddedResource Include="ObjectRemovalForm.resx">
-      <DependentUpon>ObjectRemovalForm.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="PDFViewerForm.resx">
       <DependentUpon>PDFViewerForm.cs</DependentUpon>
     </EmbeddedResource>

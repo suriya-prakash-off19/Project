@@ -15,36 +15,20 @@ namespace ObjectRemoverProject
 {
     public partial class PDFViewerForm : Form
     {
-        private ObjectManipulator objectManipulator;
+        private PdfObjectHandler objectManipulator;
         private PdfViewer pdfViewer;
         private PdfDocument pdfDocument;
         private string currentPdfPath;
-        private string pdfPathForViewer;
-        private string pdfPathForManipulator;
+        private string tempPath;
 
         public PDFViewerForm()
         {
             InitializeComponent();
             InitializePDFViewer();
-            pdfPathForViewer = @"D:\PDFRemoval\DemoForViewer.pdf";
-            pdfPathForManipulator = @"D:\PDFRemoval\DemoForManipulator.pdf";
-            CheckAndCreateDirectory();
+            tempPath = @"D:\PDFRemoval\Demo.pdf";
         }
 
-        private void CheckAndCreateDirectory()
-        {
-            string primaryDict = string.Join("\\", pdfPathForViewer.Split('\\').Take(pdfPathForViewer.Split('\\').Length - 1));
-            if(!Directory.Exists(primaryDict))
-            {
-                Directory.CreateDirectory(primaryDict);
-            }
-            primaryDict += "\\Temp";
-            if (!Directory.Exists(primaryDict))
-            {
-                Directory.CreateDirectory(primaryDict);
-            }
-        }
-
+        
         private void InitializePDFViewer()
         {
             pdfViewer = new PdfViewer()
@@ -70,13 +54,9 @@ namespace ObjectRemoverProject
 
         private void RemoveObjectAtCoordinates(string inputPath, float pdfX, float pdfY, int selectedPage)
         {
-            string temp = @"D:\PDFRemoval\Temp\Demo2.pdf";
-            objectManipulator.RemoveObject(pdfX, pdfY, temp, selectedPage+1);
-
-            File.WriteAllBytes(pdfPathForManipulator, File.ReadAllBytes(temp));
-            LoadAndReloadPdf(pdfPathForViewer);
-            objectManipulator.Dispose();
-            objectManipulator = new ObjectManipulator(pdfPathForManipulator);
+            pdfDocument?.Dispose();
+            byte[] memoryByte =  objectManipulator.RemoveObject(pdfX, pdfY, selectedPage+1);
+            LoadAndReloadPdf(memoryByte);
         }
 
         private PointF DeviceToPdfPoint( int pageIndex, Point devicePoint)
@@ -115,49 +95,46 @@ namespace ObjectRemoverProject
         private void LoadPdfBtnClicked(object sender, EventArgs e)
         {
             string currentPathCpy = currentPdfPath;
-            if (pdfDocument != null)
-            {
-                pdfViewer.Document?.Dispose();
-                pdfDocument?.Dispose();
-                File.WriteAllBytes(pdfPathForViewer, File.ReadAllBytes(pdfPathForViewer));
-            }
+            pdfViewer.Document?.Dispose();
+            pdfDocument?.Dispose();
+            
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
             {
                 openFileDialog.Filter = "PDF Files|*.pdf";
                 if (openFileDialog.ShowDialog() == DialogResult.OK)
                 {
                     currentPdfPath = openFileDialog.FileName;
+                    var temp = File.ReadAllBytes(currentPdfPath);
                     string destinPath = currentPdfPath;
-                    //string destinPath = @"D:\PDFRemoval\temp.pdf";
-                    //ObjectManipulator.ConvertPDF(currentPdfPath, destinPath);
-                    if (File.Exists(pdfPathForViewer))
-                        File.Delete(pdfPathForViewer);
-                    File.Copy(destinPath, pdfPathForViewer);
-                    if (File.Exists(pdfPathForManipulator))
-                        File.Delete(pdfPathForManipulator);
-                    File.Copy(destinPath, pdfPathForManipulator);
-                    LoadAndReloadPdf(pdfPathForViewer);
-                    objectManipulator?.Dispose();
-                    objectManipulator = new ObjectManipulator(destinPath);
+                    pdfDocument?.Dispose();
+                    objectManipulator = new PdfObjectHandler(temp);
+                    LoadAndReloadPdf(temp);
                 }
             }
-
-            //if (currentPdfPath == currentPathCpy)
-            //    return;
-
             
         }
 
-        private void LoadAndReloadPdf(string pdfPathForViewer)
+        private void LoadAndReloadPdf(byte[] temp)
         {
+            var dispRectangle = pdfViewer.Renderer.DisplayRectangle;
+            Point ZoomFactor = new Point((int)dispRectangle.X, (int)dispRectangle.Y);
             if (pdfDocument != null)
             {
                 pdfViewer.Document?.Dispose();
                 pdfDocument?.Dispose();
-                File.WriteAllBytes(pdfPathForViewer, File.ReadAllBytes(pdfPathForManipulator));
             }
-            pdfDocument = PdfDocument.Load(pdfPathForViewer);
+            pdfDocument = PdfDocument.Load(new MemoryStream(temp));
             pdfViewer.Document = pdfDocument;
+            pdfViewer.Renderer.SetBounds(dispRectangle.X, dispRectangle.Y, dispRectangle.Width, dispRectangle.Height);
+            pdfViewer.Renderer.SetDisplayRectLocation(ZoomFactor);
+
+        }
+
+        private void ResetBtnClicked(object sender, EventArgs e)
+        {
+            pdfDocument?.Dispose();
+            objectManipulator?.ResetDocument();
+            //LoadAndReloadPdf();
         }
     }
 }

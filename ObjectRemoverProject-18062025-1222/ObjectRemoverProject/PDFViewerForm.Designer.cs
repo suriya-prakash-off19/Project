@@ -30,6 +30,7 @@
         {
             this.ContainerPanel = new System.Windows.Forms.Panel();
             this.HeaderPanel = new System.Windows.Forms.Panel();
+            this.ResetBtn = new System.Windows.Forms.Button();
             this.RemoveObjectCheck = new System.Windows.Forms.CheckBox();
             this.LoadPdfBtn = new System.Windows.Forms.Button();
             this.HeaderPanel.SuspendLayout();
@@ -45,6 +46,7 @@
             // 
             // HeaderPanel
             // 
+            this.HeaderPanel.Controls.Add(this.ResetBtn);
             this.HeaderPanel.Controls.Add(this.RemoveObjectCheck);
             this.HeaderPanel.Controls.Add(this.LoadPdfBtn);
             this.HeaderPanel.Dock = System.Windows.Forms.DockStyle.Top;
@@ -52,6 +54,17 @@
             this.HeaderPanel.Name = "HeaderPanel";
             this.HeaderPanel.Size = new System.Drawing.Size(800, 58);
             this.HeaderPanel.TabIndex = 2;
+            // 
+            // ResetBtn
+            // 
+            this.ResetBtn.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+            this.ResetBtn.Location = new System.Drawing.Point(575, 14);
+            this.ResetBtn.Name = "ResetBtn";
+            this.ResetBtn.Size = new System.Drawing.Size(105, 29);
+            this.ResetBtn.TabIndex = 2;
+            this.ResetBtn.Text = "Reset";
+            this.ResetBtn.UseVisualStyleBackColor = true;
+            this.ResetBtn.Click += new System.EventHandler(this.ResetBtnClicked);
             // 
             // RemoveObjectCheck
             // 
@@ -96,5 +109,6 @@
         private System.Windows.Forms.Panel HeaderPanel;
         private System.Windows.Forms.CheckBox RemoveObjectCheck;
         private System.Windows.Forms.Button LoadPdfBtn;
+        private System.Windows.Forms.Button ResetBtn;
     }
 }
